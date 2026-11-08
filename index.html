@@ -7,71 +7,113 @@
 <title>Ball Run 2048 Co-op</title>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#10131c;color:white;font-family:Arial;touch-action:none}
-#app{height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);gap:8px}
+html,body{
+ margin:0;width:100%;height:100%;overflow:hidden;
+ background:#10131c;color:white;font-family:Arial,sans-serif;
+ touch-action:none
+}
+#app{
+ height:100dvh;display:flex;flex-direction:column;
+ padding:env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+ gap:8px
+}
 header{height:42px;display:flex;justify-content:space-between;align-items:center}
 h2{font-size:18px;margin:0}
 #status{font-size:11px;color:#d9f45b}
-#setup{margin:auto;width:min(100%,430px);background:#1b2030;border:1px solid #343c52;padding:20px;border-radius:18px}
-input,button{width:100%;padding:14px;border-radius:11px;border:1px solid #343c52;margin:5px 0;font-size:15px}
+#setup{
+ margin:auto;width:min(100%,430px);background:#1b2030;
+ border:1px solid #343c52;padding:20px;border-radius:18px
+}
+input,button{
+ width:100%;padding:14px;border-radius:11px;
+ border:1px solid #343c52;margin:5px 0;font-size:15px
+}
 input{background:#10131c;color:white}
 button{background:#d9f45b;color:#10131c;font-weight:bold}
 .secondary{background:#293149;color:white}
+button:disabled{opacity:.5}
 #game{display:none;flex:1;min-height:0;flex-direction:column;gap:9px}
 .stats{display:flex;gap:8px}
 .stat{flex:1;background:#1b2030;border-radius:12px;padding:9px;text-align:center}
 .stat span{font-size:10px;color:#aab2c8}
 .stat b{display:block;font-size:21px;margin-top:3px}
-#stage{flex:1;min-height:0;position:relative;overflow:hidden;border-radius:17px;background:#151b2a;touch-action:none}
+#stage{
+ flex:1;min-height:0;position:relative;overflow:hidden;
+ border-radius:17px;background:#151b2a;touch-action:none
+}
 canvas{width:100%;height:100%;display:block;touch-action:none}
-#hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#10131cdd;padding:8px 12px;border-radius:20px;font-size:11px;pointer-events:none}
+#hint{
+ position:absolute;top:12px;left:50%;transform:translateX(-50%);
+ white-space:nowrap;background:#10131cdd;padding:8px 12px;
+ border-radius:20px;font-size:11px;pointer-events:none
+}
+#message{font-size:12px;color:#aab2c8;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div id="app">
+
 <header>
-<h2>BALL RUN <span style="color:#d9f45b">2048</span></h2>
-<span id="status">OFFLINE</span>
+ <h2>BALL RUN <span style="color:#d9f45b">2048</span></h2>
+ <span id="status">OFFLINE</span>
 </header>
 
 <section id="setup">
-<h2>CO-OP MULTIPLAYER</h2>
-<p>Swipe freely. Collect matching balls to double your number.</p>
-<button id="create">CREATE ROOM</button>
-<button class="secondary" id="showJoin">JOIN ROOM</button>
-<div id="joinBox" hidden>
-<input id="code" maxlength="6" placeholder="ROOM CODE">
-<button id="join">JOIN GAME</button>
-</div>
-<p id="message">PeerJS multiplayer · No Supabase</p>
+ <h2>CO-OP MULTIPLAYER</h2>
+ <p>Swipe freely. Collect matching balls to double your number.</p>
+ <button id="create">CREATE ROOM</button>
+ <button class="secondary" id="showJoin">JOIN ROOM</button>
+ <div id="joinBox" hidden>
+  <input id="code" maxlength="6" placeholder="ROOM CODE">
+  <button id="join">JOIN GAME</button>
+ </div>
+ <p id="message">PeerJS multiplayer · No Supabase</p>
 </section>
 
 <section id="game">
-<div class="stats">
-<div class="stat"><span>SHARED BALL</span><b id="value">2</b></div>
-<div class="stat"><span>DISTANCE</span><b id="distance">0</b></div>
-<div class="stat"><span>PLAYERS</span><b id="players">1/2</b></div>
-</div>
-<div id="stage">
-<canvas id="canvas"></canvas>
-<div id="hint">DRAG ANYWHERE TO STEER</div>
-</div>
-<button class="secondary" id="restart">RESTART RUN</button>
-<button class="secondary" id="leave">LEAVE ROOM</button>
+ <div class="stats">
+  <div class="stat"><span>SHARED BALL</span><b id="value">2</b></div>
+  <div class="stat"><span>DISTANCE</span><b id="distance">0</b></div>
+  <div class="stat"><span>PLAYERS</span><b id="players">1/2</b></div>
+ </div>
+
+ <div id="stage">
+  <canvas id="canvas"></canvas>
+  <div id="hint">DRAG ANYWHERE TO STEER</div>
+ </div>
+
+ <button class="secondary" id="restart">RESTART RUN</button>
+ <button class="secondary" id="leave">LEAVE ROOM</button>
 </section>
+
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (()=>{
-const $=id=>document.getElementById(id);
-const canvas=$("canvas"),ctx=canvas.getContext("2d");
-let peer=null,connection=null,host=false,room="";
-let game=null,raf=0,lastTime=0,lastBroadcast=0;
-let pointerDown=false,lastPointerX=0,lastPointerTime=0;
-let lastVelocity=0;
+"use strict";
 
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+const $=id=>document.getElementById(id);
+const canvas=$("canvas");
+const ctx=canvas.getContext("2d");
+
+let peer=null;
+let connection=null;
+let host=false;
+let room="";
+let game=null;
+
+let raf=0;
+let lastTime=0;
+let lastBroadcast=0;
+let pointerDown=false;
+let lastPointerX=0;
+let lastPointerTime=0;
+let lastVelocity=0;
+let connected=false;
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
 function random(seed){
  const n=Math.sin(seed*127.1+31.7)*43758.5453;
  return n-Math.floor(n);
@@ -79,93 +121,202 @@ function random(seed){
 
 function newGame(){
  return {
-  x:0,vx:0,value:2,distance:0,speed:13,
-  objects:[],nextSpawn:12,message:"COLLECT MATCHING BALLS!"
+  x:0,
+  vx:0,
+  value:2,
+  distance:0,
+  speed:13,
+  objects:[],
+  nextSpawn:12,
+  message:"COLLECT MATCHING BALLS!"
  };
+}
+
+function setMessage(msg){
+ $("hint").textContent=msg;
+ $("message").textContent=msg;
 }
 
 function startGame(){
  $("setup").style.display="none";
  $("game").style.display="flex";
- $("status").textContent="ROOM "+room;
- game=newGame();
+ $("status").textContent="CONNECTED";
  resize();
+
+ if(host){
+  game=newGame();
+ }
+
  cancelAnimationFrame(raf);
  lastTime=0;
  raf=requestAnimationFrame(loop);
 }
 
 function createRoom(){
- room=Math.random().toString(36).slice(2,8).toUpperCase();
- host=true;
- peer=new Peer("ballrun2048-"+room.toLowerCase());
+ if(!window.Peer){
+  $("message").textContent="PeerJS failed to load. Check your internet.";
+  return;
+ }
 
- $("message").textContent="Creating room...";
+ host=true;
+ connected=false;
+ room=Math.random().toString(36).slice(2,8).toUpperCase();
+
+ $("create").disabled=true;
+ $("message").textContent="Creating room "+room+"...";
+
+ peer=new Peer(
+  "ballrun2048-"+room.toLowerCase(),
+  {
+   host:"0.peerjs.com",
+   port:443,
+   path:"/",
+   secure:true,
+   debug:1
+  }
+ );
 
  peer.on("open",()=>{
+  $("message").textContent="Room created! Code: "+room;
+  $("status").textContent="WAITING";
   startGame();
-  setMessage("ROOM CODE: "+room);
  });
 
  peer.on("connection",conn=>{
-  if(connection){conn.close();return}
+  if(connection){
+   conn.close();
+   return;
+  }
+
   connection=conn;
   setupConnection();
  });
 
- peer.on("error",e=>$("message").textContent="Connection error: "+e.type);
+ peer.on("error",e=>{
+  $("message").textContent="Host error: "+e.type;
+  $("create").disabled=false;
+ });
+
+ peer.on("disconnected",()=>{
+  $("message").textContent="Signaling server disconnected.";
+ });
 }
 
 function joinRoom(){
+ if(!window.Peer){
+  $("message").textContent="PeerJS failed to load.";
+  return;
+ }
+
  room=$("code").value.trim().toUpperCase();
+
  if(room.length!==6){
   $("message").textContent="Enter a six-character room code.";
   return;
  }
- host=false;
- peer=new Peer();
 
- peer.on("open",()=>{
-  connection=peer.connect("ballrun2048-"+room.toLowerCase(),{reliable:true});
-  setupConnection();
-  connection.on("open",()=>{
-   $("message").textContent="Connected!";
-   $("players").textContent="2/2";
-  });
-  setTimeout(()=>{
-   if(connection&&!connection.open)$("message").textContent="Room not found.";
-  },10000);
+ host=false;
+ connected=false;
+
+ $("join").disabled=true;
+ $("message").textContent="Connecting to room "+room+"...";
+
+ peer=new Peer(undefined,{
+  host:"0.peerjs.com",
+  port:443,
+  path:"/",
+  secure:true,
+  debug:1
  });
 
- peer.on("error",e=>$("message").textContent="PeerJS error: "+e.type);
+ peer.on("open",()=>{
+  connection=peer.connect(
+   "ballrun2048-"+room.toLowerCase(),
+   {
+    reliable:true,
+    serialization:"json"
+   }
+  );
+
+  setupConnection();
+
+  connection.on("open",()=>{
+   connected=true;
+   $("players").textContent="2/2";
+   $("message").textContent="Connected to host!";
+   startGame();
+  });
+ });
+
+ peer.on("error",e=>{
+  $("message").textContent="Peer error: "+e.type;
+  $("join").disabled=false;
+ });
+
+ setTimeout(()=>{
+  if(!connected){
+   $("message").textContent=
+    "Connection timed out. Check the room code and try again.";
+   $("join").disabled=false;
+  }
+ },20000);
 }
 
 function setupConnection(){
  connection.on("open",()=>{
+  connected=true;
   $("players").textContent="2/2";
-  if(host)sendState();
+  $("status").textContent="CONNECTED";
+
+  if(host){
+   sendState();
+  }
  });
 
  connection.on("data",data=>{
   if(!data)return;
+
   if(host){
-   if(data.type==="DRAG")applyDrag(data.dx);
-   if(data.type==="GLIDE")game.vx=clamp(game.vx+data.impulse,-2,2);
-   if(data.type==="RESTART")game=newGame();
-  }else if(data.type==="STATE"){
-   game=data.game;
-   draw();
+   if(data.type==="DRAG"&&game){
+    applyDrag(data.dx);
+   }
+
+   if(data.type==="GLIDE"&&game){
+    game.vx=clamp(game.vx+data.impulse,-2,2);
+   }
+
+   if(data.type==="RESTART"){
+    game=newGame();
+   }
+  }else{
+   if(data.type==="STATE"){
+    game=data.game;
+
+    if($("game").style.display==="flex"){
+     draw();
+    }
+   }
   }
  });
 
  connection.on("close",()=>{
+  connected=false;
   $("players").textContent="1/2";
   setMessage("PLAYER DISCONNECTED");
+ });
+
+ connection.on("error",e=>{
+  $("message").textContent="Connection error: "+e;
  });
 }
 
 function sendState(){
- if(connection&&connection.open)connection.send({type:"STATE",game});
+ if(connection&&connection.open){
+  connection.send({
+   type:"STATE",
+   game:game
+  });
+ }
 }
 
 function applyDrag(dx){
@@ -174,88 +325,142 @@ function applyDrag(dx){
 }
 
 function sendDrag(dx){
- if(host)applyDrag(dx);
- else if(connection&&connection.open)connection.send({type:"DRAG",dx});
+ if(!game)return;
+
+ if(host){
+  applyDrag(dx);
+ }else if(connection&&connection.open){
+  connection.send({type:"DRAG",dx});
+ }
 }
 
-function setMessage(msg){$("hint").textContent=msg}
-
 $("create").onclick=createRoom;
+
+$("showJoin").onclick=()=>{
+ $("joinBox").hidden=false;
+};
+
 $("join").onclick=joinRoom;
-$("showJoin").onclick=()=>{$("joinBox").hidden=false};
 
 $("restart").onclick=()=>{
- if(host)game=newGame();
- else if(connection&&connection.open)connection.send({type:"RESTART"});
+ if(host){
+  game=newGame();
+ }else if(connection&&connection.open){
+  connection.send({type:"RESTART"});
+ }
 };
 
 $("leave").onclick=()=>{
  cancelAnimationFrame(raf);
- if(peer)peer.destroy();
- peer=null;connection=null;game=null;
+
+ if(peer){
+  peer.destroy();
+ }
+
+ peer=null;
+ connection=null;
+ game=null;
+ connected=false;
+
  $("game").style.display="none";
  $("setup").style.display="block";
  $("status").textContent="OFFLINE";
+ $("create").disabled=false;
+ $("join").disabled=false;
 };
 
 canvas.addEventListener("pointerdown",e=>{
+ if(!game)return;
+
  pointerDown=true;
  lastPointerX=e.clientX;
  lastPointerTime=performance.now();
  lastVelocity=0;
+
  canvas.setPointerCapture(e.pointerId);
 });
 
 canvas.addEventListener("pointermove",e=>{
  if(!pointerDown)return;
+
  const now=performance.now();
  const dx=e.clientX-lastPointerX;
  const elapsed=Math.max(1,now-lastPointerTime);
+
  sendDrag(dx/canvas.clientWidth);
+
  lastVelocity=dx/elapsed;
  lastPointerX=e.clientX;
  lastPointerTime=now;
 });
 
-function release(){
+function releasePointer(){
  if(!pointerDown)return;
  pointerDown=false;
+
  const impulse=clamp(lastVelocity*.025,-.12,.12);
- if(host&&game)game.vx=clamp(game.vx+impulse,-2,2);
- else if(connection&&connection.open)connection.send({type:"GLIDE",impulse});
+
+ if(host&&game){
+  game.vx=clamp(game.vx+impulse,-2,2);
+ }else if(connection&&connection.open){
+  connection.send({type:"GLIDE",impulse});
+ }
 }
-canvas.addEventListener("pointerup",release);
-canvas.addEventListener("pointercancel",release);
+
+canvas.addEventListener("pointerup",releasePointer);
+canvas.addEventListener("pointercancel",releasePointer);
 
 function spawn(){
  const id=Math.floor(game.distance/12)+1;
+
  const x=random(id*13)*1.7-.85;
  const matching=random(id*19)<.85;
+
+ // Matching balls always follow the current shared value.
  const value=matching?game.value:game.value*2;
 
  if(random(id*7)<.18){
-  game.objects.push({type:"SPIKE",x,z:game.distance+48});
+  game.objects.push({
+   type:"SPIKE",
+   x,
+   z:game.distance+48
+  });
  }else{
-  game.objects.push({type:"BALL",x,z:game.distance+48,value});
+  game.objects.push({
+   type:"BALL",
+   x,
+   z:game.distance+48,
+   value
+  });
  }
+
  game.nextSpawn+=12;
 }
 
 function update(dt){
  if(!host||!game)return;
+
  const s=dt/1000;
 
  game.distance+=game.speed*s;
+
  game.x=clamp(game.x+game.vx*s,-.92,.92);
  game.vx*=Math.exp(-5*s);
 
- while(game.distance>=game.nextSpawn)spawn();
+ while(game.distance>=game.nextSpawn){
+  spawn();
+ }
 
  for(const o of game.objects){
   if(o.hit)continue;
 
   const remaining=o.z-game.distance;
-  if(remaining<=10&&remaining>=8.5&&Math.abs(o.x-game.x)<.18){
+
+  if(
+   remaining<=10&&
+   remaining>=8.5&&
+   Math.abs(o.x-game.x)<.18
+  ){
    o.hit=true;
 
    if(o.type==="SPIKE"){
@@ -270,27 +475,38 @@ function update(dt){
   }
  }
 
- game.objects=game.objects.filter(o=>!o.hit&&o.z>game.distance-3);
- // Endless run: no finish condition.
+ game.objects=game.objects.filter(
+  o=>!o.hit&&o.z>game.distance-3
+ );
 }
 
 function resize(){
  const r=canvas.getBoundingClientRect();
  const d=Math.min(devicePixelRatio||1,2);
+
  canvas.width=Math.round(r.width*d);
  canvas.height=Math.round(r.height*d);
+
  ctx.setTransform(d,0,0,d,0,0);
 }
+
 window.addEventListener("resize",resize);
 
 function trackX(x,depth,w){
  const half=w*(.10+.39*depth);
  return w/2+x*half;
 }
-function trackY(depth,h){return h*.12+depth*h*.91}
+
+function trackY(depth,h){
+ return h*.12+depth*h*.91;
+}
 
 function drawBall(x,y,r,value,player){
- const g=ctx.createRadialGradient(x-r*.35,y-r*.4,2,x,y,r);
+ const g=ctx.createRadialGradient(
+  x-r*.35,y-r*.4,2,
+  x,y,r
+ );
+
  if(player){
   g.addColorStop(0,"#fffbb0");
   g.addColorStop(.4,"#d9f45b");
@@ -300,39 +516,62 @@ function drawBall(x,y,r,value,player){
   g.addColorStop(.35,"#79eaff");
   g.addColorStop(1,"#2476cf");
  }
+
  ctx.save();
- if(player){ctx.shadowColor="#d9f45b";ctx.shadowBlur=17}
+
+ if(player){
+  ctx.shadowColor="#d9f45b";
+  ctx.shadowBlur=17;
+ }
+
  ctx.fillStyle=g;
- ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();
+ ctx.arc(x,y,r,0,Math.PI*2);
+ ctx.fill();
+
  ctx.restore();
+
  ctx.fillStyle=player?"#17200b":"#102030";
  ctx.font="bold "+Math.max(10,r*.56)+"px Arial";
- ctx.textAlign="center";ctx.textBaseline="middle";
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
  ctx.fillText(value.toLocaleString(),x,y);
 }
 
 function draw(){
  if(!game)return;
- const w=canvas.clientWidth,h=canvas.clientHeight;
+
+ const w=canvas.clientWidth;
+ const h=canvas.clientHeight;
+
  ctx.clearRect(0,0,w,h);
 
  const bg=ctx.createLinearGradient(0,0,0,h);
  bg.addColorStop(0,"#202b45");
  bg.addColorStop(1,"#0d1321");
- ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
 
- const cx=w/2,top=h*.12,bottom=h*1.04;
- const tw=w*.20,bw=w*.98;
+ ctx.fillStyle=bg;
+ ctx.fillRect(0,0,w,h);
 
+ const cx=w/2;
+ const top=h*.12;
+ const bottom=h*1.04;
+ const tw=w*.20;
+ const bw=w*.98;
+
+ // Fixed perspective track.
  ctx.fillStyle="#303b56";
  ctx.beginPath();
  ctx.moveTo(cx-tw/2,top);
  ctx.lineTo(cx+tw/2,top);
  ctx.lineTo(cx+bw/2,bottom);
  ctx.lineTo(cx-bw/2,bottom);
- ctx.closePath();ctx.fill();
+ ctx.closePath();
+ ctx.fill();
 
- ctx.strokeStyle="#71809f";ctx.lineWidth=3;
+ ctx.strokeStyle="#71809f";
+ ctx.lineWidth=3;
+
  for(const side of [-1,1]){
   ctx.beginPath();
   ctx.moveTo(cx+side*tw/2,top);
@@ -340,19 +579,26 @@ function draw(){
   ctx.stroke();
  }
 
+ // Scrolling floor marks.
  const offset=(game.distance*.11)%1;
+
  for(let i=0;i<15;i++){
   const depth=((i/15)+offset)%1;
   const y=trackY(depth,h);
   const half=w*(.10+.39*depth);
+
   ctx.fillStyle="#ffffff20";
   ctx.fillRect(cx-half,y,half*2,2+depth*2);
  }
 
+ // Incoming objects.
  for(const o of game.objects){
   const depth=1-(o.z-game.distance)/48;
+
   if(depth<0||depth>1)continue;
-  const x=trackX(o.x,depth,w),y=trackY(depth,h);
+
+  const x=trackX(o.x,depth,w);
+  const y=trackY(depth,h);
   const r=7+depth*23;
 
   if(o.type==="SPIKE"){
@@ -361,32 +607,49 @@ function draw(){
    ctx.moveTo(x-r,y+r*.6);
    ctx.lineTo(x,y-r);
    ctx.lineTo(x+r,y+r*.6);
-   ctx.closePath();ctx.fill();
-  }else drawBall(x,y,r,o.value,false);
+   ctx.closePath();
+   ctx.fill();
+  }else{
+   drawBall(x,y,r,o.value,false);
+  }
  }
 
- drawBall(trackX(game.x,.78,w),trackY(.78,h),Math.min(35,w*.085),game.value,true);
+ // Player ball.
+ drawBall(
+  trackX(game.x,.78,w),
+  trackY(.78,h),
+  Math.min(35,w*.085),
+  game.value,
+  true
+ );
 
  $("value").textContent=game.value.toLocaleString();
  $("distance").textContent=Math.floor(game.distance);
- setMessage(game.message);
+
+ if(game.message){
+  $("hint").textContent=game.message;
+ }
 }
 
 function loop(time){
  const dt=Math.min(40,time-(lastTime||time));
  lastTime=time;
+
  update(dt);
  draw();
 
- if(host&&connection&&connection.open&&time-lastBroadcast>50){
+ if(
+  host&&connection&&connection.open&&
+  time-lastBroadcast>50
+ ){
   sendState();
   lastBroadcast=time;
  }
+
  raf=requestAnimationFrame(loop);
 }
-})();
 
+})();
 </script>
 </body>
 </html>
-
